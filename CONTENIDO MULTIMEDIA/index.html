@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kiosk Interactivo - Grupo Kantutani</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#16a34a',
+                            700: '#15803d',
+                            800: '#0f5132',
+                            900: '#0a3822',
+                            gold: '#d4af37',
+                            goldHover: '#b89628',
+                            accent: '#0284c7'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    aspectRatio: {
+                        'portrait': '9 / 16',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+           
+
+            /* Hacer que el video de la bienvenida se quede fijo en el fondo de todo el quiosco */
+    #attractScreen video {
+        z-index: -10 !important;
+        position: fixed !important;
+        display: block !important;
+    }
+
+            /* Estirar el Menú Principal al ras de la pantalla vertical sin scroll */
+    body:not(:has(#btnBack[style*="display: flex"])) #mainContainer {
+        overflow-y: auto !important; /* Desaparece la barra de scroll lateral */
+        height: calc(100vh - 120px) !important;
+            /* Mantener el bloqueo rígido sin scroll únicamente en la pantalla gigante del quiosco */
+    @media (min-width: 1025px) {
+        body:not(:has(#btnBack[style*="display: flex"])) #mainContainer {
+            overflow: hidden !important;
+        }
+    }
+
+    }
+
+    body:not(:has(#btnBack[style*="display: flex"])) #mainContent > div.grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        grid-auto-rows: 1fr !important; /* Fuerza a las 4 filas a repartirse el alto de forma equitativa */
+        gap: 1.5rem !important;
+        height: 100% !important;
+        overflow: hidden !important;
+        padding: 0.5rem 1rem !important;
+       #mainContent {
+        background-color: rgba(5, 65, 39, 0.50) !important; /* El verde exacto con 85% de transparencia */
+        min-height: 0 !important;
+        padding: 1rem !important;
+         position: relative !important; /* <- AGREGAR ESTA LÍNEA EXACTA */
+    }
+    /* Forzar a que el video de fondo ocupe toda la pantalla y sea ultra visible */
+    #mainContent video {
+        display: block !important;
+        position: absolute !important;
+        inset: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: cover !important;
+        opacity: 0.95 !important; /* Sube la fuerza del video al 85% para que se note mucho más */
+        z-index: -1 !important;
+    }
+       div[class*="bg-slate-800"] {
+        background-color: #000000 !important; /* Negro absoluto sólido y elegante */
+        background: #000000 !important;
+        border-bottom: 1px solid rgba(197, 160, 89, 0.20) !important; /* Línea dorada sutil abajo */
+
+    }
+
+        
+}
+        body {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+                    background: transparent !important;
+
+            color: #f8fafc;
+            overflow: hidden;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(212, 175, 55, 0.5);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(212, 175, 55, 0.8);
+        }
+
+        /* Glassmorphism utility */
+        .glass-card {
+            background: rgba(15, 35, 25, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+        }
+
+        .glass-card-active {
+            background: rgba(212, 175, 55, 0.15);
+            border: 2px solid rgba(212, 175, 55, 0.8);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+        }
+
+        /* Subtle idle pulse animation */
+        @keyframes touchPulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+        .animate-touch-pulse {
+            animation: touchPulse 2.5s infinite ease-in-out;
+        }
+
+        /* Content switch animations */
+        .page-enter {
+            animation: fadeInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fadeInRight {
+            from { opacity: 0; transform: translateX(30px) scale(0.98); }
+            to { opacity: 1; transform: translateX(0) scale(1); }
+        }
+    </style>
+</head>
+
+<body class="bg-transparent h-screen w-screen flex flex-col justify-between overflow-hidden relative text-gray-100 select-none">
+   
+    <!-- ATTRACT MODE / IDLE SPLASH SCREEN (For Fair Displays) -->
+        <div id="attractScreen" class="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-between p-12 text-center transition-opacity duration-700 ease-in-out">
+
+            <!-- Video de fondo continuo con transparencia -->
+    <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover pointer-events-none" style="opacity: 0.25; z-index: 0;">
+        <source src="CONTENIDO MULTIMEDIA/fondo_2.mp4" type="video/mp4">
+    </video>
+
+        <div class="mt-12 flex flex-col items-center">
+            <div class="w-full flex items-center justify-center mb-6">
+    <img src="LOGOS/Logo grupo kantutani.png" class="max-w-[280px] h-auto object-contain" alt="Logo Grupo Kantutani">
+
+            </div>
+            <h1 class="text-4xl font-extrabold tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-brand-gold to-yellow-500 uppercase">
+
+            </h1>
+            <p class="text-emerald-200/80 text-xl font-light mt-2 tracking-widest">
+            
+            </p>
+        </div>
+
+        <div class="my-auto flex flex-col items-center animate-touch-pulse cursor-pointer" onclick="dismissAttractScreen()">
+            <div class="w-28 h-28 rounded-full bg-brand-gold text-brand-900 flex items-center justify-center text-4xl shadow-2xl mb-6 border-4 border-amber-300">
+                <i class="fa-solid fa-hand-pointer"></i>
+            </div>
+            <span class="text-3xl font-bold text-white tracking-wide uppercase">Toca la pantalla</span>
+            <span class="text-emerald-300/90 text-lg mt-2 font-medium"></span>
+        </div>
+
+        <div class="mb-6 text-sm text-emerald-400/60 border-t border-emerald-800/50 pt-4 w-full max-w-md">
+            
+        </div>
+    
+
+
+    </div>
+
+    <!-- KIOSK TOP HEADER -->
+    <header class="w-full bg-black border-b border-brand-gold/30 px-6 py-4 flex items-center justify-between z-30 shadow-lg shrink-0">
+        <div class="flex items-center space-x-4">
+            <button id="btnHome" onclick="navigateToRoot()" class="p-3 bg-brand-gold/20 hover:bg-brand-gold/30 border border-brand-gold/50 text-brand-gold rounded-2xl transition active:scale-95 flex items-center justify-center" title="Inicio">
+                <i class="fa-solid fa-house text-2xl"></i>
+            </button>
+            <div>
+                <h2 class="text-2xl font-bold tracking-tight text-brand-gold">GRUPO KANTUTANI</h2>
+                <p class="text-xs text-emerald-300/80 tracking-widest uppercase"
+            </div>
+        </div>
+
+        <!-- Clock & Global Actions -->
+        <div class="flex items-center space-x-3">
+            <button onclick="toggleSearchModal()" class="px-4 py-2 bg-white/5 hover:bg-emerald-800/80 border border-emerald-700/50 rounded-xl text-sm font-medium text-emerald-200 flex items-center gap-2 active:scale-95">
+                <i class="fa-solid fa-magnifying-glass text-brand-gold"></i>
+                <span>Buscar</span>
+            </button>
+
+           
+
+            <div class="hidden sm:flex flex-col items-end text-right border-l border-emerald-800/60 pl-3">
+                <span id="currentTime" class="text-lg font-bold text-amber-200 leading-none">12:00</span>
+                <span id="currentDate" class="text-[10px] text-emerald-300/70 uppercase tracking-wider mt-1">2026</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- BREADCRUMB / BACK BAR -->
+    <nav class="w-full bg-black/40 backdrop-blur-md px-6 py-3 border-b border-emerald-900/40 flex items-center justify-between shrink-0 z-20">
+        <div id="breadcrumbContainer" class="flex items-center space-x-2 text-sm text-emerald-200/80 overflow-x-auto whitespace-nowrap">
+            <!-- Dynamic breadcrumbs rendered by JS -->
+        </div>
+
+        <button id="btnBack" onclick="navigateBack()" class="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-sm font-semibold flex items-center gap-2 transition active:scale-95">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Volver</span>
+        </button>
+    </nav>
+
+    <!-- MAIN INTERACTIVE CONTENT AREA (VERTICAL DRILL-DOWN) -->
+
+    <main id="mainContent" class="bg-[#054127/80] flex-1 overflow-y-auto p-6 space-y-6 relative page-enter isolate">
+   
+
+
+        <!-- JS dynamically populates content based on current node in hierarchy -->
+    </main>
+
+    <!-- KIOSK FOOTER -->
+    <footer class="w-full bg-brand-900/90 backdrop-blur-md border-t border-brand-gold/20 px-6 py-3 flex items-center justify-between z-30 shrink-0 text-xs text-emerald-300/70">
+        <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-medium text-emerald-200"></span>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="showCustomizerModal()" class="hover:text-brand-gold underline transition">
+                <i class="fa-solid fa-images mr-1"></i> 
+            </button>
+            <button onclick="resetIdleTimer()" class="hover:text-brand-gold transition">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i> Reiniciar
+            </button>
+        </div>
+    </footer>
+    <!-- PHOTO / CONTENT LIGHTBOX MODAL -->
+    <div id="photoModal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex flex-col justify-between p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+        <!-- Modal Top Bar -->
+        <div class="flex items-center justify-between text-white border-b border-white/10 pb-4">
+            <div>
+                <h3 id="modalTitle" class="text-2xl font-bold text-brand-gold">Título de la Foto</h3>
+                <p id="modalSubtitle" class="text-sm text-gray-300">Descripción o categoría</p>
+            </div>
+            <button onclick="closePhotoModal()" class="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition active:scale-90">
+                <i class="fa-solid fa-xmark text-2xl"></i>
+            </button>
+        </div>
+        <!-- Modal Center Viewport -->
+        <div class="relative flex-1 flex items-center justify-center my-4 overflow-hidden rounded-2xl bg-black/50 border border-white/10">
+            <img id="modalImage" src="" alt="Vista previa" class="max-h-full max-w-full object-contain rounded-xl shadow-2xl transition-transform duration-300">
+            
+            <!-- Navigation arrows inside modal -->
+            <button onclick="prevModalImage()" class="absolute left-4 top-1/2 -translate-y-1/2 p-4 bg-black/60 hover:bg-black/90 text-brand-gold border border-brand-gold/30 rounded-full text-2xl active:scale-90">
+                <i class="fa-solid fa-chevron-left"></i>
+            </button>
+            <button onclick="nextModalImage()" class="absolute right-4 top-1/2 -translate-y-1/2 p-4 bg-black/60 hover:bg-black/90 text-brand-gold border border-brand-gold/30 rounded-full text-2xl active:scale-90">
+                <i class="fa-solid fa-chevron-right"></i>
+            </button>
+        </div>
+        <!-- Modal Footer Controls -->
+        <div class="flex items-center justify-between text-white border-t border-white/10 pt-4">
+            <span id="modalCounter" class="text-sm font-medium text-emerald-400">Imagen 1 de 5</span>
+            <div class="flex gap-3">
+                <button onclick="zoomModalImage(1.2)" class="px-4 py-2 bg-slate-950/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-700/50 rounded-xl text-sm font-semibold">
+                    <i class="fa-solid fa-magnifying-glass-plus mr-1"></i> Zoom +
+                </button>
+                <button onclick="resetZoomModalImage()" class="px-4 py-2 bg-slate-950/60 hover:bg-emerald-800 text-emerald-200 border border-emerald-700/50 rounded-xl text-sm font-semibold">
+                    <i class="fa-solid fa-compress mr-1"></i> Normal
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- QUICK SEARCH MODAL -->
+    <div id="searchModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-start justify-center p-6 opacity-0 pointer-events-none transition-opacity duration-300 pt-20">
+        <div class="w-full max-w-xl glass-card rounded-3xl p-6 border border-brand-gold/40 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-xl font-bold text-brand-gold flex items-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass"></i> Búsqueda Rápida
+                </h3>
+                <button onclick="toggleSearchModal()" class="p-2 text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="Escribe 'Sacaba', 'Misiones', 'Norte'..." class="w-full px-5 py-4 bg-emerald-950/80 border border-brand-gold/40 rounded-2xl text-white text-lg focus:outline-none focus:border-brand-gold placeholder-emerald-400/50">
+            
+            <div id="searchResults" class="mt-4 max-h-80 overflow-y-auto space-y-2 pr-1">
+                <p class="text-center text-sm text-gray-400 py-6">Comienza a escribir para buscar servicios, parques o sedes...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- CUSTOMIZER / IMAGE URL SETUP MODAL FOR FAIR EXHIBITORS -->
+    <div id="customizerModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="w-full max-w-xl glass-card rounded-3xl p-6 border border-brand-gold/40 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-brand-gold flex items-center gap-2">
+                    <i class="fa-solid fa-gear"></i> Configuración de la Pantalla
+                </h3>
+                <button onclick="hideCustomizerModal()" class="p-2 text-gray-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            <p class="text-sm text-emerald-200/80">
+                Estructura interactiva completa para stand de feria en pantalla vertical.
+            </p>
+            <div class="bg-emerald-950/90 p-4 rounded-2xl border border-emerald-800/60 text-xs text-emerald-300 space-y-2">
+                <p class="font-bold text-amber-300">8 Botones Principales Configurados:</p>
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><b>Misiones</b> (Santa Cruz, Montero, Complejos de Velación, Parques)</li>
+                    <li><b>Kantutani</b> (Complejos de Velación Santa María, Parque)</li>
+                    <li><b>Concordia</b> (Complejos de Velación Central, Quillacollo, Parques)</li>
+                    <li><b>Unidad de Duelo</b> (Misiones, Kantutani, Concordia)</li>
+                    <li><b>Fundación Kantutani</b> (Visión Kantutani, Volver a Ver, Bus Esperanza)</li>
+                    <li><b>Taawa</b></li>
+                    <li><b>CCI</b> (Centro Crematorio Integral, Renders)</li>
+                    <li><b>Anima</b></li>
+                </ul>
+            </div>
+            <button onclick="hideCustomizerModal()" class="w-full py-3 bg-brand-gold hover:bg-brand-goldHover text-brand-900 font-bold rounded-xl transition">
+                Entendido, Continuar
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Comprehensive hierarchical data tree
+        const kantutaniData = {
+            id: "root",
+            title: "Menú Principal",
+            subtitle: "Selecciona una opción para explorar nuestros parques, servicios y proyectos",
+            type: "categories",
+            children: [
+                {
+                    id: "misiones",
+                    title: "Misiones",
+                    subtitle: "Santa Cruz y Montero - Complejos de velación y Parques Cementerios",
+                    icon: "LOGOS/Logo misiones.png",
+                    badge: "Santa Cruz",
+                    color: "bg-slate-900/90 border border-slate-800 bg-none",
+                    type: "group",
+                    children: [
+                        {
+                            id: "santa-cruz",
+                            title: "Santa Cruz",
+                            
+                            icon: "LOGOS/mapa_santa_cruz.png",
+                            type: "group",
+                            children: [
+                                {
+                                    id: "scz-Complejos de velación",
+                                    title: "Complejos de Velación",
+                                    
+                                    icon: "fa-building",
+                                    type: "group",
+                                    children: [
+                                        {
+                                            id: "Complejo de velación-2do-anillo",
+                                            title: "2do Anillo",
+                                           
+                                            icon: "fa-building-columns",
+                                            type: "detail",
+                                            fotos: [
+                                                 "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/2do/21.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/2do/22.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/2do/23.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/2do/24.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/2do/25.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/2do/26.jpg"
+                                            ],
+                                            description: "Instalaciones cómodas y solemnes en el 2do Anillo de Santa Cruz."
+                                        },
+                                        {
+                                            id: "Complejo de velación-4to-anillo",
+                                            title: "4to Anillo",
+                                            
+                                            icon: "fa-building-columns",
+                                            type: "detail",
+                                            fotos: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/4to/41.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/4to/42.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/4to/43.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/4to/44.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/4to/45.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/fune/4to/46.jpg"
+                                            ],
+                                            description: "Atención cálida y espacios de homenaje en la sede 4to Anillo."
+                                        }
+                                    ]
+                                },
+                                {
+                                    id: "scz-parque",
+                                    title: "Parque cementerio",
+                                    
+                                    icon: "fa-tree",
+                                    type: "group",
+                                    children: [
+                                        {
+                                            id: "parque-norte",
+                                            title: "Norte",
+                                         
+                                            icon: "fa-map-location-dot",
+                                            type: "detail",
+                                            planimetria: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/planimetria/plannor1.png"
+                                            ],
+                                            fotos: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/nor1.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/nor2.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/nor3.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/nor4.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/nor5.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/norte/nor6.jpg"
+                                            ],
+                                            description: "Amplias áreas verdes, jardines florales y tranquilidad en la Zona Norte."
+                                        },
+                                        {
+                                            id: "parque-montesacro",
+                                            title: "Montesacro",
+                                           
+                                            icon: "fa-mountain-sun",
+                                            type: "detail",
+                                            planimetria: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/planimetria/planmont1.png"
+                                            ],
+                                            fotos: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/mont1.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/mont2.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/mont3.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/mont4.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/mont5.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/montesacro/mont6.jpg"
+                                            ],
+                                            description: "Parque jardín Montesacro con vistas panorámicas y sectores exclusivos."
+                                        },
+                                        {
+                                            id: "parque-la-guardia",
+                                            title: "La Guardia",
+                                        
+                                            icon: "fa-leaf",
+                                            type: "detail",
+                                            planimetria: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/planimetria/plangua1.png",
+                                            ],
+                                            fotos: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/gua1.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/gua2.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/gua3.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/gua4.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/gua5.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/la guardia/gua6.jpg"
+                                            ],
+                                            description: "Entorno natural y apacible en la zona de La Guardia."
+                                        },
+                                        {
+                                            id: "parque-el-palmar",
+                                            title: "El Palmar",
+                                        
+                                            icon: "fa-spa",
+                                            type: "detail",
+                                            planimetria: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/planimetria/planpal1.png",
+                                            ],
+                                            fotos: [
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/pal1.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/pal2.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/pal3.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/pal4.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/pal5.jpg",
+                                                "CONTENIDO MULTIMEDIA/MISIONES/Santa Cruz/parque/el palmar/pal6.jpg"
+                                            ],
+                                            description: "Hermosas avenidas arboladas y sectores de paz eterna."
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            id: "montero",
+                            title: "Montero",
+                     
+                            icon: "fa-location-dot",
+                            type: "group",
+                            children: [
+                                {
+                                    id: "montero-Complejo de velación",
+                                    title: "Complejo de Velación",
+                                  
+                                    icon: "fa-cubes",
+                                    type: "detail",
+                                    renders: [
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/fune/montero1.jpg",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/fune/montero2.jpg",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/fune/montero3.jpg",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/fune/montero 4.jpg",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/fune/montero 5.jpg",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/fune/montero 6.jpg"
+                                    ],
+                                    description: "Proyecto y renders de la futura sede funeraria en Montero."
+                                },
+                                {
+                                    id: "montero-parque",
+                                    title: "Parque Cementerio",
+                                   
+                                    icon: "fa-tree",
+                                    type: "detail",
+                                     planimetria: [
+                                            "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/planimetria/planmontero1.png"
+                                    ],
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/montero1.png",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/montero2.png",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/montero3.png",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/montero4.png",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/montero5.png",
+                                        "CONTENIDO MULTIMEDIA/MISIONES/Montero/parque/montero6.png"
+                                    ],
+                                    description: "Instalaciones del Parque Cementerio Misiones en la ciudad de Montero."
+                                }
+                                
+                            ]
+                        }
+                    
+                    ],
+                    
+                },
+                
+                {
+                    id: "kantutani",
+                    title: "Kantutani",
+                    subtitle: "Complejo de velación Santa María y Parques Cementerios en La Paz",
+                    icon: "LOGOS/Logo kantutani.png",
+                    badge: "La Paz",
+                    color: "bg-slate-900/90 border border-slate-800 bg-none",
+                    type: "group",
+                    children: [
+                        {
+                            id: "Complejo de velación-santa-maria",
+                            title: "Complejo de Velación Santa María",                   
+                            icon: "fa-building",
+                            type: "group",
+                            children: [
+                                {
+                                    id: "Complejo de velación-busch",
+                                    title: "Busch",                                    
+                                    icon: "fa-building",
+                                    type: "detail",
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu1.png",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu2.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu3.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu4.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu5.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu6.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu7.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/busch/bu8.jpg"
+                                    ],
+                                    description: "Salones velvet y confort de la Sede Busch en La Paz."
+                                },
+                                {
+                                    id: "Complejo de velación-del-parque",
+                                    title: "Del Parque",                                 
+                                    icon: "fa-building",
+                                    type: "detail",
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/del parque/dp1.png",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/del parque/dp2.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/del parque/dp3.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/del parque/dp4.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/del parque/dp5.png",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/del parque/dp6.png"
+                                    ],
+                                    description: "Ambientes cálidos en la Sede Del Parque."
+                                },
+                                {
+                                    id: "Complejo de velación-mario-mercado",
+                                    title: "Mario Mercado",                                  
+                                    icon: "fa-building",
+                                    type: "detail",
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm1.jpeg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm2.png",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm3.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm4.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm5.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm6.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm7.png",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/mario mercado/mm8.png"
+                                    ],
+                                    description: "Salones de velación en la Av. Mario Mercado."
+                                },
+                                {
+                                    id: "Complejo de velación-satelite",
+                                    title: "Satélite",
+                                    icon: "fa-building",
+                                    type: "detail",
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/satelite/sat1.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/satelite/sat2.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/satelite/sat3.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/satelite/sat4.jpg",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/satelite/sat5.png",
+                                        "CONTENIDO MULTIMEDIA/KANTUTANI/fune/satelite/sat6.png"
+                                    ],
+                                    description: "Instalaciones de la Sede Satélite en la ciudad de El Alto."
+                                }
+                            ]
+                        },
+                        {
+                            id: "kantutani-parque",
+                            title: "Parque Cementerio",
+                          
+                            icon: "fa-tree",
+                            type: "group",
+                            children: [
+                    {
+            id: "parque-jardines",
+            title: "Jardines",
+            icon: "fa-map-location-dot",
+            type: "group",
+            children: [
+                {
+                    id: "jardines-tradicional",
+                    title: "Jardines",
+                    icon: "",
+                    type: "detail",
+                            planimetria: [
+                        "CONTENIDO MULTIMEDIA/JARDINES/planimetria.png"
+                    ],
+                    fotos: [
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar1.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar2.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar3.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar4.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar5.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar6.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar7.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar8.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar9.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/jardin/jar10.jpg"
+                    ],
+
+                    description: "Sección de parques y jardines tradicionales del complejo."
+                },
+                {
+                    id: "jardines-vertical",
+                    title: "Vertical",
+                    icon: "",
+                    type: "detail",
+                                        planimetria: [
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/planver1.png"
+                    ],
+                    fotos: [
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver1.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver2.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver3.png",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver4.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver5.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver6.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver7.jpg",
+                        "CONTENIDO MULTIMEDIA/KANTUTANI/parque/vertical/ver8.jpg"
+                    ],
+
+                    description: "Información y galerías del sector de Jardines Verticales."
+                }
+            ]
+        },
+        {
+            id: "parque-los-andes",
+            title: "Los Andes",
+            icon: "fa-map-location-dot",
+            type: "detail",
+            planimetria: [
+                "https://unsplash.com"
+            ],
+            fotos: [
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la1.jpg",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la2.png",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la3.jpg",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la5.jpg",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la6.jpg",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la7.jpg",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la8.jpg",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la9.png",
+                "CONTENIDO MULTIMEDIA/KANTUTANI/parque/los andes/la10.png"
+            ],
+            description: "Parque cementerio los Andes con vistas majestuosas a la cordillera."
+        },
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: "concordia",
+                    title: "Concordia",
+                    subtitle: "Complejos de Velación y Parques Cementerios en Cochabamba",
+                    icon: "LOGOS/Logo concordia.png",
+                    badge: "Cochabamba",
+                    color: "bg-slate-900/90 border border-slate-800 bg-none",
+                    type: "group",
+                    children: [
+                        {
+                            id: "concordia-complejos-de-velacion",
+                            title: "Complejos de Velación",
+                            icon: "fa-building",
+                            type: "group",
+                            children: [
+                                {
+                                    id: "concordia- Complejo de velación-central",
+                                    title: "Central",
+                           
+                                    icon: "fa-building-columns",
+                                    type: "detail",
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen1.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen2.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen3.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen4.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen5.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen6.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen7.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen8.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/central/cen9.PNG"
+
+                                    ],
+                                    description: "Instalaciones centrales en la ciudad de Cochabamba."
+                                },
+                                {
+                                    id: "concordia- Complejo de velación-quillacollo",
+                                    title: "Quillacollo",
+                                
+                                    icon: "fa-building-columns",
+                                    type: "detail",
+                                    fotos: [
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil1.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil2.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil3.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil4.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil5.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil6.PNG",
+                                        "CONTENIDO MULTIMEDIA/CONCORDIA/fune/quillacollo/quil7.PNG"
+                                    ],
+                                    description: "Sede de atención y velación en Quillacollo."
+                        }
+                    ]
+                },
+                {
+                    id: "concordia-parque",
+                    title: "Parque Cementerio",
+                  
+                    icon: "fa-tree",
+                    type: "group",
+                    children: [
+                        {
+                            id: "concordia-parque-colcapirhua",
+                            title: "Colcapirhua",
+                       
+                            icon: "fa-map-location-dot",
+                            type: "detail",
+                            planimetria: [
+                                "https://images.unsplash.com/photo-1524813686514-a57563d77965?auto=format&fit=crop&w=1200&q=80"
+                            ],
+                            fotos: [
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/colcapirhua/col1.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/colcapirhua/col2.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/colcapirhua/col3.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/colcapirhua/col4.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/colcapirhua/col5.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/colcapirhua/col6.png"
+                            ],
+                            description: "Hermosos jardines en el sector de Colcapirhua."
+                        },
+                        {
+                            id: "concordia-parque-tiquipaya",
+                            title: "Tiquipaya",
+                       
+                            icon: "fa-map-location-dot",
+                            type: "detail",
+                            planimetria: [
+                                "https://images.unsplash.com/photo-1524813686514-a57563d77965?auto=format&fit=crop&w=1200&q=80"
+                            ],
+                            fotos: [
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/tiquipaya/tiq1.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/tiquipaya/tiq2.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/tiquipaya/tiq3.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/tiquipaya/tiq4.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/tiquipaya/tiq5.png"
+                            
+                            ],
+                            description: "Entorno natural y apacible en Tiquipaya."
+                        },
+                        {
+                            id: "concordia-parque-sacaba",
+                            title: "Sacaba",
+                            
+                            icon: "fa-map-location-dot",
+                            type: "detail",
+                            planimetria: [
+                                "https://images.unsplash.com/photo-1524813686514-a57563d77965?auto=format&fit=crop&w=1200&q=80"
+                            ],
+                            fotos: [
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/sacaba/sac1.png",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/sacaba/sac2.JPG",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/sacaba/sac3.JPG",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/sacaba/sac4.JPG",
+                                "CONTENIDO MULTIMEDIA/CONCORDIA/parque/sacaba/sac5.JPG"
+                            ],
+                            description: "Amplios sectores memoriales en el municipio de Sacaba."
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            id: "unidad-de-duelo",
+            title: "Unidad de Duelo",
+            subtitle: "Acompañamiento psicológico y contención familiar",
+                    icon: "LOGOS/Unidad de duelo LOGO GENERAL.png",
+                    badge: "Apoyo Humano",
+                    color: "from-purple-900/80 to-purple-950/90",
+                    type: "group",
+                    children: [
+                        {
+                            id: "duelo-misiones",
+                            title: "Misiones",
+                            subtitle: "Fotos Unidad de Duelo Misiones (Santa Cruz)",
+                            icon: "LOGOS/UDD_Misiones.png",
+                            type: "detail",
+                            fotos: [
+                                "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD MISIONES/UD MIS 1.jpeg",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD MISIONES/UD MIS 2.JPG",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD MISIONES/UD MIS 3.JPG",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD MISIONES/UD MIS 4.jpeg" 
+                            ],
+                            description: "Salas de contención y equipo profesional de apoyo emocional en Santa Cruz."
+                        },
+                        {
+                            id: "duelo-kantutani",
+                            title: "Santa María",
+                            subtitle: "Fotos Unidad de Duelo Santa María (La Paz)",
+                            icon: "LOGOS/UDD_StaMaria.png",
+                            type: "detail",
+                            fotos: [
+                                    "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD KANTUTANI/UD KANT 1.JPG",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD KANTUTANI/UD KANT 2.JPG",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD KANTUTANI/UD KANT 3.JPG",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD KANTUTANI/UD KANT 4.JPG"
+                            ],
+                            description: "Acompañamiento y talleres de tanatología en La Paz."
+                        },
+                        {
+                            id: "duelo-concordia",
+                            title: "Concordia",
+                            subtitle: "Fotos Unidad de Duelo Concordia (Cochabamba)",
+                            icon: "LOGOS/UDD_Concordia.png",
+                            type: "detail",
+                            fotos: [
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD CONCORDIA/UD CON 1.png",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD CONCORDIA/UD CON 2.png",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD CONCORDIA/UD CON 3.png",
+                                     "CONTENIDO MULTIMEDIA/UNIDAD DE DUELO/UD CONCORDIA/UD CON 4.png"                                                    
+
+            ],
+
+                            
+                            description: "Espacios de contención cálidos en Cochabamba."
+                        }
+                    ]
+                },
+                {
+                    id: "Fundación y Visión Kantutani",
+                    title: "Fundación y Visión Kantutani",
+                    subtitle: "Visión Kantutani, Volver a Ver y Bus Esperanza",
+                    icon: "LOGOS/Logo Vision y Fundacion.png",
+                    badge: "Impacto Social",
+                    color: "from-teal-800/80 to-teal-950/90",
+                    type: "group",
+                    children: [
+                                    {
+                                       id: "fundacion-kantutani",
+                                      title: "Fundación Kantutani",
+                                        subtitle: "Proyectos sociales y de apoyo de la fundación",
+                                     icon: "LOGOS/Logo fundacion kantutani.png",
+                                      type: "group",
+                                      children: 
+                                      [
+                    {
+                        id: "bus-esperanza",
+                        title: "Bus de la esperanza",
+                        icon: "",
+                        type: "detail",
+                        fotos: [
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus1.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus2.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus3.jpeg",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus4.jpg",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus5.jpeg",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus6.jpg",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus7.jpg",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus8.jpg",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/BUS DE LA ESPERANZA/bus9.jpg"
+                        ]
+                    },
+                    {
+                        id: "proyecto-infantil",
+                        title: "Proyecto infantil",
+                        icon: "",
+                        type: "detail",
+                        fotos: [
+                               "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf1.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf2.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf3.JPEG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf4.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf5.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf6.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf7.JPEG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf8.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO INFANTIL/inf9.JPEG"
+                        ]
+                    },
+                    {
+                        id: "proyecto-adulto-mayor",
+                        title: "Proyecto adulto mayor",
+                        icon: "",
+                        type: "detail",
+                        fotos: [
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am1.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am2.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am3.JPEG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am4.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am5.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am6.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am7.JPG",
+                                "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO ADULTO MAYOR/am8.JPG"
+                        
+                        ]
+                    },
+                    {
+                        id: "proyecto-discapacidad",
+                        title: "Proyecto personas con discapacidad",
+                        icon: "",
+                        type: "detail",
+                        fotos: [
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO PERSONAS CON DISCAPACIDAD/disc1.JPEG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO PERSONAS CON DISCAPACIDAD/disc2.JPEG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO PERSONAS CON DISCAPACIDAD/disc3.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO PERSONAS CON DISCAPACIDAD/disc4.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/PROYECTO PERSONAS CON DISCAPACIDAD/disc5.JPEG"
+                            
+                        ]
+                    },
+                    {
+                        id: "volver-a-ver-fundacion",
+                        title: "Volver a Ver",
+                        icon: "",
+                        type: "detail",
+                        fotos: [
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv1.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv2.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv3.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv4.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv5.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv6.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv7.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv8.JPG",
+                            "CONTENIDO MULTIMEDIA/FUNDACION KANTUTANI/VOLVER A VER/vv9.JPG" 
+                        ]
+                    }
+                ]
+                                    },
+                                   {
+                                      id: "vision-kantutani",
+                                      title: "Visión Kantutani",
+                                     subtitle: "Clínicas, Cirugías y Ópticas",
+                                     icon: "LOGOS/Logo vision kantutani.png",
+                                     type: "group",
+                                     children:
+                                     [
+                    {
+                        id: "clinica-vision",
+                        title: "Clínica",
+                        subtitle: "Oftalmología, Cirugías y Estudios",
+                        icon: "",
+                        type: "group",
+                        children: [
+                            {
+                                id: "oftalmologia-general",
+                                title: "Oftalmología General",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "oftalmologia-pediatrica",
+                                title: "Oftalmología Pediátrica",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "optometria",
+                                title: "Optometría",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "cirugias-cataratas",
+                                title: "Cirugías",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "cirugia-refractiva",
+                                title: "Cirugía Refractiva",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "estudios-complementarios",
+                                title: "Estudios complementarios",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            }
+                        ]
+                    },
+                    {
+                        id: "opticas-vision",
+                        title: "Ópticas",
+                        subtitle: "Nuestras sucursales a nivel nacional",
+                        icon: "",
+                        type: "group",
+                        children: [
+                            {
+                                id: "optica-la-paz",
+                                title: "La Paz",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "optica-cochabamba",
+                                title: "Cochabamba",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            },
+                            {
+                                id: "optica-santa-cruz",
+                                title: "Santa Cruz",
+                                
+                                icon: "",
+                                type: "detail",
+                                fotos: []
+                            }
+                        ]
+                    }
+                ]
+                                     }
+                          ]                      
+ },
+                {
+                    id: "taawa",
+                    title: "Taawa",
+                    subtitle: "Programas sociales e integrales comunitarios",
+                    icon: "fa-people-group",
+                    badge: "Comunidad",
+                    color: "from-indigo-800/80 to-emerald-950/90",
+                    type: "group",
+                            children: [],
+                    description: "Proyectos comunitarios e integrales para familias y adultos mayores."
+                },
+                {
+                    id: "cci",
+                    title: "CCI",
+                    subtitle: "Nuna y Renders Proyecto CCI",
+                    icon: "LOGOS/Logo cci.png",
+                    badge: "Proyectos VIP",
+                    color: "from-yellow-800/80 to-amber-950/90",
+                    type: "group",
+                    children: [
+                        {
+                            id: "nuna",
+                            title: "Nuna",
+                            subtitle: "Galería de fotos",
+                            icon: "fa-leaf",
+                            type: "detail",
+                            fotos: [
+                                "CONTENIDO MULTIMEDIA/CCI/NUNA/nuna1.JPEG",
+                                "CONTENIDO MULTIMEDIA/CCI/NUNA/nuna2.JPEG",
+                                "CONTENIDO MULTIMEDIA/CCI/NUNA/nuna3.JPEG",
+                                "CONTENIDO MULTIMEDIA/CCI/NUNA/nuna4.JPEG"
+                            ],
+                            description: "Instalaciones y detalles de Nuna."
+                        },
+                        {
+                            id: "cci-renders",
+                            title: "CCI",
+                            subtitle: "Renders Proyecto",
+                            icon: "fa-cubes",
+                            type: "detail",
+                            
+                            fotos: [
+                                "CONTENIDO MULTIMEDIA/CCI/CCI/cci1.JPEG",
+                                "CONTENIDO MULTIMEDIA/CCI/CCI/cci2.JPEG",
+                                "CONTENIDO MULTIMEDIA/CCI/CCI/cci3.JPEG",
+                                "CONTENIDO MULTIMEDIA/CCI/CCI/cci4.JPEG"
+                            ],
+                            description: "Renders y diseño conceptual del CCI."
+                        }
+                    ]
+                },
+                {
+                    id: "anima",
+                    title: "Anima",
+                    
+                    icon: "LOGOS/Logo crematorio.png",
+                    badge: "Social",
+                    color: "from-rose-800/80 to-emerald-950/90",
+                    type: "detail",
+                    fotos: ["https://images.unsplash.com/photo-1582213782179-e0d53f98f2ca?auto=format&fit=crop&w=1200&q=80"],
+                    
+                }
+            ]
+        };
+        let navigationHistory = [kantutaniData];
+        let currentModalImages = [];
+        let currentModalIndex = 0;
+        let currentModalZoom = 1;
+        let idleTimer = null;
+        let soundEnabled = true;
+
+        // Web Audio API simple touch synthesizer sound generator
+        const playTouchSound = (freq = 440) => {
+            if (!soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.15);
+            } catch (e) {}
+        };
+
+        function renderCurrentView() {
+            const currentNode = navigationHistory[navigationHistory.length - 1];
+            const mainContainer = document.getElementById('mainContent');
+                     mainContainer.className = "bg-slate-900 flex-1 overflow-y-auto p-6 space-y-6 relative page-enter";
+            // Update Breadcrumbs
+            renderBreadcrumbs();
+            // Toggle Back Button visibility
+            const btnBack = document.getElementById('btnBack');
+            if (navigationHistory.length > 1) {
+                btnBack.style.display = "flex";
+            } else {
+                btnBack.style.display = "none";
+            }
+
+            // Render view according to node type
+            if (currentNode.type === "categories" || currentNode.type === "group") {
+                renderGroupView(currentNode);
+            } else if (currentNode.type === "detail") {
+                renderDetailView(currentNode);
+            }
+        }
+function renderGroupView(node) {
+    const mainContainer = document.getElementById('mainContent');
+    if (!mainContainer) return;
+
+    let html = '';
+        // Inyectar el video de fondo local directamente adentro del contenedor antes de las tarjetas
+    html += `
+    <video autoplay loop muted playsinline class="absolute inset-0 w-full h-full object-cover pointer-events-none" style="opacity: 0.20; z-index: -1;">
+        <source src="CONTENIDO MULTIMEDIA/fondo_2.mp4" type="video/mp4">
+    </video>
+    `;
+
+        if (node && node.id === "misiones") {
+        if (!node.children.some(c => c.id === "misiones-lista-precios")) {
+            node.children.push({
+                id: "misiones-lista-precios",
+                title: "Lista de Precios",
+                icon: "",
+                type: "detail",
+                description: "Información detallada sobre tarifas y costos vigentes de los servicios."
+            });
+        }
+        if (!node.children.some(c => c.id === "misiones-sistema-entierro")) {
+            node.children.push({
+                id: "misiones-sistema-entierro",
+                title: "Sistema de Entierro",
+                icon: "",
+                type: "group",
+                children: []
+            });
+        }
+    }
+
+    if (node && node.children) {
+        html += `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-4">`;
+        
+        node.children.forEach(child => {
+            // Condición inteligente: si el icono incluye una imagen real (.png, .jpg, .webp) dibujamos solo el logo
+            const tieneLogoReal = child.icon && (child.icon.includes('.png') || child.icon.includes('.jpg') || child.icon.includes('.webp'));
+            
+            html += `
+            <div onclick="drillDown('${child.id}')" 
+                 class="bg-white border border-slate-200 rounded-3xl cursor-pointer hover:scale-[1.02] active:scale-95 transition-all duration-200 flex flex-col items-center justify-center text-center select-none shadow-md hover:shadow-lg h-52 p-6 group relative overflow-hidden">
+                
+                ${tieneLogoReal ? `
+                    <!-- Si tiene logo: Se muestra grande ocupando todo el cuadro -->
+                    <div class="w-full h-full flex items-center justify-center p-2 transition-transform duration-300 group-hover:scale-105">
+                        <img src="${child.icon}" alt="${child.title}" class="max-w-full max-h-full object-contain">
+                    </div>
+                ` : `
+                    <!-- Si NO tiene logo (como Santa Cruz o Montero): Mostramos el texto del título grande y elegante -->
+                    <div class="flex flex-col items-center justify-center h-full">
+                        <h2 class="text-2xl font-bold text-slate-800 tracking-wide">${child.title}</h2>
+                        ${child.subtitle ? `<p class="text-sm text-slate-500 mt-2 line-clamp-2 px-2">${child.subtitle}</p>` : ''}
+                    </div>
+                `}
+            </div>`;
+        });
+        
+        html += `</div>`;
+    }
+    
+    mainContainer.innerHTML = html;
+}
+        function renderDetailView(node) {
+            const mainContainer = document.getElementById('mainContent');
+
+            // Gather all available image sections
+            let tabs = [];
+            if (node.renders && node.renders.length) tabs.push({ id: 'renders', label: 'Renders Proyecto 3D', icon: 'fa-cubes', data: node.renders });
+            if (node.planimetria && node.planimetria.length) tabs.push({ id: 'planimetria', label: 'Planimetría del Parque', icon: 'fa-map-location-dot', data: node.planimetria });
+            if (node.cobertura && node.cobertura.length) tabs.push({ id: 'cobertura', label: 'Mapas de Cobertura', icon: 'fa-map', data: node.cobertura });
+            if (node.fotos && node.fotos.length) tabs.push({ id: 'fotos', label: 'Fotos e Instalaciones', icon: 'fa-camera', data: node.fotos });
+
+            // If no images exist, fallback
+            if (tabs.length === 0) {
+                tabs.push({
+                    id: 'fotos',
+                    label: 'Fotos de Muestra',
+                    icon: 'fa-image',
+                    data: ["https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80"]
+                });
+            }
+            let html = `
+                <div class="space-y-6">
+                    <div class="glass-card p-6 rounded-3xl border border-brand-gold/30 bg-gradient-to-r from-emerald-950/80 to-brand-900/90 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <div class="flex items-center gap-3">
+                                <span class="w-10 h-10 rounded-xl bg-brand-gold/20 text-brand-gold flex items-center justify-center text-lg">
+                                    <i class="fa-solid ${node.icon || 'fa-building'}"></i>
+                                </span>
+                                <h1 class="text-3xl font-extrabold text-white">${node.title}</h1>
+                            </div>
+                            <p class="text-emerald-200/80 text-base mt-2">${node.description || node.subtitle || ''}</p>
+                        </div>
+                    </div>
+                    <!-- Category Gallery Tabs -->
+                    <div class="flex space-x-2 overflow-x-auto pb-2">
+            `;
+            tabs.forEach((tab, index) => {
+                const activeClass = index === 0 ? "bg-brand-gold text-brand-900 font-bold shadow-lg" : "bg-emerald-950/80 text-emerald-200 border border-emerald-800/60";
+                html += `
+                    <button onclick="switchDetailTab('${tab.id}')" id="tab-btn-${tab.id}" class="detail-tab-btn px-5 py-3 rounded-2xl text-sm flex items-center gap-2 whitespace-nowrap transition active:scale-95 ${activeClass}">
+                        <i class="fa-solid ${tab.icon}"></i>
+                        <span>${tab.label} (${tab.data.length})</span>
+                    </button>
+                `;
+            });
+            html += `</div>`;
+
+            // Image Grids Container
+            tabs.forEach((tab, index) => {
+                const hiddenClass = index === 0 ? "" : "hidden";
+                html += `
+                    <div id="tab-content-${tab.id}" class="tab-content-panel ${hiddenClass} space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                `;
+
+                tab.data.forEach((imgUrl, imgIdx) => {
+                    html += `
+                        <div onclick="openPhotoModal('${node.title} - ${tab.label}', '${tab.label}', ${JSON.stringify(tab.data).replace(/"/g, '&quot;')}, ${imgIdx})" 
+                             class="group relative h-64 rounded-2xl overflow-hidden cursor-pointer border border-brand-gold/20 bg-black/40 shadow-xl hover:border-brand-gold transition-all">
+                            <img src="${imgUrl}" alt="${node.title}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" onerror="this.src='https://placehold.co/800x600/0a2e1e/d4af37?text=Foto+Kantutani'">
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                <div class="flex items-center justify-between w-full">
+                                    <span class="text-sm font-semibold text-white flex items-center gap-2">
+                                        <i class="fa-solid fa-expand text-brand-gold"></i> Toca para ampliar
+                                    </span>
+                                    <span class="px-2 py-1 rounded bg-brand-gold/20 text-brand-gold text-xs font-mono">#${imgIdx + 1}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            mainContainer.innerHTML = html;
+        }
+
+        function switchDetailTab(selectedTabId) {
+            playTouchSound(520);
+            document.querySelectorAll('.detail-tab-btn').forEach(btn => {
+                btn.className = "detail-tab-btn px-5 py-3 rounded-2xl text-sm flex items-center gap-2 whitespace-nowrap transition active:scale-95 bg-emerald-950/80 text-emerald-200 border border-emerald-800/60";
+            });
+            document.querySelectorAll('.tab-content-panel').forEach(panel => panel.classList.add('hidden'));
+
+            const activeBtn = document.getElementById(`tab-btn-${selectedTabId}`);
+            const activePanel = document.getElementById(`tab-content-${selectedTabId}`);
+
+            if (activeBtn) activeBtn.className = "detail-tab-btn px-5 py-3 rounded-2xl text-sm flex items-center gap-2 whitespace-nowrap transition active:scale-95 bg-brand-gold text-brand-900 font-bold shadow-lg";
+            if (activePanel) activePanel.classList.remove('hidden');
+        }
+
+        function renderBreadcrumbs() {
+            const container = document.getElementById('breadcrumbContainer');
+            let html = '';
+    container.className = "w-full absolute left-0 right-0 bg-black px-6 py-3 flex items-center border-b border-brand-gold/10";
+
+            navigationHistory.forEach((node, index) => {
+                const isLast = index === navigationHistory.length - 1;
+                if (index > 0) {
+                    html += `<i class="fa-solid fa-chevron-right text-xs text-brand-gold/60 my-auto"></i>`;
+                }
+
+                if (isLast) {
+            html += `<span class="font-semibold text-brand-gold text-sm tracking-widest uppercase bg-transparent px-2 py-1">${node.title}</span>`;
+                } else {
+                    html += `<button onclick="navigateToBreadcrumb(${index})" class="hover:text-amber-300 font-medium transition px-2 py-1">${node.title}</button>`;
+                }
+            });
+
+            container.innerHTML = html;
+        }
+
+        function drillDown(targetId) {
+            playTouchSound(600);
+            const currentNode = navigationHistory[navigationHistory.length - 1];
+            if (!currentNode.children) return;
+
+            const targetNode = currentNode.children.find(c => c.id === targetId);
+            if (targetNode) {
+                navigationHistory.push(targetNode);
+                renderCurrentView();
+            }
+        }
+
+        function navigateBack() {
+            playTouchSound(380);
+            if (navigationHistory.length > 1) {
+                navigationHistory.pop();
+                renderCurrentView();
+            }
+        }
+
+        function navigateToBreadcrumb(index) {
+            playTouchSound(440);
+            if (index >= 0 && index < navigationHistory.length) {
+                navigationHistory = navigationHistory.slice(0, index + 1);
+                renderCurrentView();
+            }
+        }
+
+        function navigateToRoot() {
+            playTouchSound(350);
+            navigationHistory = [kantutaniData];
+            renderCurrentView();
+        }
+
+        function openPhotoModal(title, subtitle, imagesArray, index = 0) {
+            playTouchSound(700);
+            currentModalImages = imagesArray;
+            currentModalIndex = index;
+            currentModalZoom = 1;
+
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalSubtitle').innerText = subtitle;
+            updateModalImageView();
+
+            const modal = document.getElementById('photoModal');
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+        }
+
+        function closePhotoModal() {
+            playTouchSound(300);
+            const modal = document.getElementById('photoModal');
+            modal.classList.add('pointer-events-none', 'opacity-0');
+            modal.classList.remove('opacity-100');
+        }
+
+        function updateModalImageView() {
+            const img = document.getElementById('modalImage');
+            const counter = document.getElementById('modalCounter');
+
+            img.style.transform = `scale(${currentModalZoom})`;
+            img.src = currentModalImages[currentModalIndex];
+            counter.innerText = `Imagen ${currentModalIndex + 1} de ${currentModalImages.length}`;
+        }
+
+        function prevModalImage() {
+            playTouchSound(500);
+            if (currentModalIndex > 0) {
+                currentModalIndex--;
+            } else {
+                currentModalIndex = currentModalImages.length - 1;
+            }
+            currentModalZoom = 1;
+            updateModalImageView();
+        }
+
+        function nextModalImage() {
+            playTouchSound(500);
+            if (currentModalIndex < currentModalImages.length - 1) {
+                currentModalIndex++;
+            } else {
+                currentModalIndex = 0;
+            }
+            currentModalZoom = 1;
+            updateModalImageView();
+        }
+
+        function zoomModalImage(factor) {
+            playTouchSound(650);
+            currentModalZoom *= factor;
+            if (currentModalZoom > 3) currentModalZoom = 3;
+            document.getElementById('modalImage').style.transform = `scale(${currentModalZoom})`;
+        }
+
+        function resetZoomModalImage() {
+            playTouchSound(400);
+            currentModalZoom = 1;
+            document.getElementById('modalImage').style.transform = `scale(1)`;
+        }
+
+        function toggleSearchModal() {
+            playTouchSound(450);
+            const modal = document.getElementById('searchModal');
+            const isHidden = modal.classList.contains('pointer-events-none');
+
+            if (isHidden) {
+                modal.classList.remove('pointer-events-none', 'opacity-0');
+                modal.classList.add('opacity-100');
+                document.getElementById('searchInput').focus();
+            } else {
+                modal.classList.add('pointer-events-none', 'opacity-0');
+                modal.classList.remove('opacity-100');
+            }
+        }
+
+        // Helper recursively gathers all leaf nodes
+        function getAllNodes(node) {
+            let nodes = [node];
+            if (node.children) {
+                node.children.forEach(child => {
+                    nodes = nodes.concat(getAllNodes(child));
+                });
+            }
+            return nodes;
+        }
+
+        function handleSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const resultsContainer = document.getElementById('searchResults');
+
+            if (!query) {
+                resultsContainer.innerHTML = '<p class="text-center text-sm text-gray-400 py-6">Comienza a escribir para buscar servicios, parques o sedes...</p>';
+                return;
+            }
+
+            const allNodes = getAllNodes(kantutaniData);
+            const filtered = allNodes.filter(n => 
+                n.title.toLowerCase().includes(query) || 
+                (n.subtitle && n.subtitle.toLowerCase().includes(query)) ||
+                (n.description && n.description.toLowerCase().includes(query))
+            );
+
+            if (filtered.length === 0) {
+                resultsContainer.innerHTML = '<p class="text-center text-sm text-amber-300/80 py-6">No se encontraron resultados.</p>';
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(item => {
+                html += `
+                    <div onclick="selectSearchResult('${item.id}')" class="p-3 bg-slate-950/40 hover:bg-emerald-800/60 rounded-xl border border-emerald-700/40 cursor-pointer flex items-center justify-between transition">
+                        <div>
+                            <h4 class="font-bold text-white">${item.title}</h4>
+                            <p class="text-xs text-emerald-300/70">${item.subtitle || ''}</p>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-brand-gold text-sm"></i>
+                    </div>
+                `;
+            });
+
+            resultsContainer.innerHTML = html;
+        }
+
+        function selectSearchResult(nodeId) {
+            toggleSearchModal();
+            // Build path to target node
+            function findPath(curr, targetId, path = []) {
+                if (curr.id === targetId) return [...path, curr];
+                if (curr.children) {
+                    for (let child of curr.children) {
+                        const p = findPath(child, targetId, [...path, curr]);
+                        if (p) return p;
+                    }
+                }
+                return null;
+            }
+
+            const path = findPath(kantutaniData, nodeId);
+            if (path) {
+                navigationHistory = path;
+                renderCurrentView();
+            }
+        }
+
+        function dismissAttractScreen() {
+            playTouchSound(800);
+            const attract = document.getElementById('attractScreen');
+            if (attract) {
+                attract.classList.add('opacity-0', 'pointer-events-none');
+            }
+            resetIdleTimer();
+        }
+
+        function resetIdleTimer() {
+            clearTimeout(idleTimer);
+            // 3 minutes of idle time returns to attract splash screen
+            idleTimer = setTimeout(() => {
+                const attract = document.getElementById('attractScreen');
+                if (attract) {
+                    attract.classList.remove('opacity-0', 'pointer-events-none');
+                }
+                navigateToRoot();
+            }, 180000);
+        }
+
+        // Attach touch listeners for kiosk interaction reset
+        window.addEventListener('click', resetIdleTimer);
+        window.addEventListener('touchstart', resetIdleTimer);
+
+        function toggleAudio() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('soundIcon');
+            if (soundEnabled) {
+                icon.className = "fa-solid fa-volume-high";
+                playTouchSound(600);
+            } else {
+                icon.className = "fa-solid fa-volume-xmark";
+            }
+        }
+
+        function showCustomizerModal() {
+            playTouchSound(450);
+            const modal = document.getElementById('customizerModal');
+            modal.classList.remove('pointer-events-none', 'opacity-0');
+            modal.classList.add('opacity-100');
+        }
+
+        function hideCustomizerModal() {
+            playTouchSound(300);
+            const modal = document.getElementById('customizerModal');
+            modal.classList.add('pointer-events-none', 'opacity-0');
+            modal.classList.remove('opacity-100');
+        }
+
+        // Real-time Clock logic for Top Bar
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateStr = now.toLocaleDateString('es-BO', { weekday: 'short', day: 'numeric', month: 'short' });
+            
+            const timeEl = document.getElementById('currentTime');
+            const dateEl = document.getElementById('currentDate');
+            if (timeEl) timeEl.innerText = timeStr;
+            if (dateEl) dateEl.innerText = dateStr;
+        }
+
+        window.onload = function() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            renderCurrentView();
+            resetIdleTimer();
+        };
+        // Inyección automática y segura de los datos de Taawa
+if (typeof kantutaniData !== 'undefined' && kantutaniData.children) {
+    const taawaNode = kantutaniData.children.find(child => child.id === "taawa");
+    if (taawaNode) {
+        taawaNode.subtitle = "Servicios integrales para mascotas";
+        taawaNode.icon = "LOGOS/Logo taawa.png";
+        taawaNode.children = [
+            { id: "taawa-convivencia", title: "Convivencia", icon: "", type: "detail", fotos: ["CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv1.jpg", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv2.PNG", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv3.PNG", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv4.PNG", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv5.PNG", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv6.jpg", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv7.jpg", "CONTENIDO MULTIMEDIA/TAAWA/CONVIVENCIA/conv8.jpg"] },
+            { id: "taawa-veterinaria", title: "Veterinaria", icon: "", type: "detail", fotos: [
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet3.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet2.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet1.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet4.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet5.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet6.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet7.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/VETERINARIA/vet8.jpg"    
+            ] },
+            { id: "taawa-peluqueria", title: "Peluquería y petshop", icon: "", type: "detail", fotos: [
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel1.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel2.JPG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel3.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel4.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel5.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel6.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel7.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PELUQUERIA Y PETSHOP/pel8.PNG"
+            ] },
+            { id: "taawa-cowork", title: "Cowork", icon: "", type: "detail", fotos: [
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow1.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow2.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow3.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow4.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow5.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow6.PNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow7.DNG",
+                "CONTENIDO MULTIMEDIA/TAAWA/COWORK/cow8.PNG"
+            ] },
+            { id: "taawa-piscina", title: "Piscina", icon: "", type: "detail", fotos: [
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis1.jpeg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis2.JPEG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis3.JPEG",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis4.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis5.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis6.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis7.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis8.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis9.jpg",
+                "CONTENIDO MULTIMEDIA/TAAWA/PISCINA/pis10.jpg"
+            ] }
+        ];
+    }
+}
+// Solución definitiva: Remueve iconos viejos de Misiones y pinta títulos oscuros
+if (typeof kantutaniData !== 'undefined' && kantutaniData.children) {
+    const misionesNode = kantutaniData.children.find(child => child.id === "misiones");
+    if (misionesNode && misionesNode.children) {
+        misionesNode.children.forEach(child => {
+            child.icon = ""; // Limpia el icono roto
+        });
+    }
+}
+
+// Estilos automáticos: Muestra texto oscuro solo si la tarjeta no tiene imagen corporativa
+const styleQuiosco = document.createElement('style');
+styleQuiosco.innerHTML = `
+    #mainContent .grid > div h2 {
+        color: #1e293b !important;
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+    #mainContent .grid > div p {
+        color: #64748b !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+`;
+document.head.appendChild(styleQuiosco);
+
+document.head.appendChild(styleMinimalist);
+// Limpieza absoluta y automática de iconos en submenús para forzar el texto nativo
+if (typeof kantutaniData !== 'undefined' && kantutaniData.children) {
+    const limpiarSubmenus = (node) => {
+        if (node.children) {
+            node.children.forEach(child => {
+                if (child.icon) {
+                    const iconLower = child.icon.toLowerCase();
+                    // Detecta y borra cualquier icono de prueba sin importar mayúsculas o minúsculas
+                    if (iconLower.includes('bus') || iconLower.includes('infantil') || iconLower.includes('adulto') || iconLower.includes('discapacidad') || iconLower.includes('volver')) {
+                        child.icon = ""; 
+                    }
+                }
+                limpiarSubmenus(child);
+            });
+        }
+    };
+    kantutaniData.children.forEach(limpiarSubmenus);
+}
+
+
+
+    </script>
+</body>
+</html>
