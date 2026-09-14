@@ -1748,20 +1748,27 @@ if (typeof kantutaniData !== 'undefined' && kantutaniData.children) {
     kantutaniData.children.forEach(limpiarSubmenus);
 }
 
-    // Liberación fulminante de scroll para celulares desde el motor del sistema
+        // Forzar scroll en móviles destruyendo clases de Tailwind
     document.addEventListener("DOMContentLoaded", function() {
         if (window.innerWidth <= 1024) {
-            document.documentElement.style.setProperty("overflow-y", "auto", "important");
-            document.body.style.setProperty("overflow-y", "auto", "important");
-            const mc = document.getElementById("mainContent");
-            if(mc) {
-                mc.style.setProperty("overflow", "auto", "important");
-                mc.style.setProperty("height", "auto", "important");
-                const grid = mc.querySelector(".grid");
-                if(grid) grid.style.setProperty("height", "auto", "important");
-            }
+            setInterval(function() {
+                document.documentElement.style.overflow = "auto";
+                document.body.style.overflow = "auto";
+                const mc = document.getElementById("mainContent");
+                if (mc) {
+                    mc.style.overflow = "auto";
+                    mc.style.height = "auto";
+                    mc.style.maxHeight = "none";
+                    const grid = mc.querySelector(".grid");
+                    if (grid) {
+                        grid.style.height = "auto";
+                        grid.style.maxHeight = "none";
+                    }
+                }
+            }, 500);
         }
     });
+
 
 
     </script>
