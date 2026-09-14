@@ -56,7 +56,7 @@
             /* Mantener el bloqueo rígido sin scroll únicamente en la pantalla gigante del quiosco */
     @media (min-width: 1025px) {
         body:not(:has(#btnBack[style*="display: flex"])) #mainContainer {
-            overflow: hidden !important;
+            overflow: auto !important;
         }
     }
 
