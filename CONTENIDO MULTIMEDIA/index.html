@@ -75,12 +75,12 @@
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         grid-auto-rows: 1fr !important; /* Fuerza a las 4 filas a repartirse el alto de forma equitativa */
         gap: 1.5rem !important;
-        height: 100% !important;
+        height: auto !important;
         overflow: auto !important;
         padding: 0.5rem 1rem !important;
        #mainContent {
         background-color: rgba(5, 65, 39, 0.50) !important; /* El verde exacto con 85% de transparencia */
-        min-height: 0 !important;
+        min-height: 100vh !important;
         padding: 1rem !important;
          position: relative !important; /* <- AGREGAR ESTA LÍNEA EXACTA */
     }
