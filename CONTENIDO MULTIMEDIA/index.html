@@ -61,15 +61,13 @@
     }
 
     }
-    /* Liberar el scroll en celulares y tablets rompiendo los candados de la raíz */
-    @media (max-width: 1024px) {
-        html, body {
-            overflow-y: auto !important;
-            overflow-x: auto !important;
-            height: auto !important;
-            position: relative !important;
-        }
-    }
+       /* Liberación absoluta y forzada de scroll para cualquier dispositivo y pantalla */
+    html, body, #mainContainer, #mainContent {
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        height: auto !important;
+        min-height: 100vh !important;
+    }  
 
     body:not(:has(#btnBack[style*="display: flex"])) #mainContent > div.grid {
         display: grid !important;
