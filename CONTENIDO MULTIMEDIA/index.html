@@ -1749,6 +1749,20 @@ if (typeof kantutaniData !== 'undefined' && kantutaniData.children) {
     kantutaniData.children.forEach(limpiarSubmenus);
 }
 
+    // Liberación fulminante de scroll para celulares desde el motor del sistema
+    document.addEventListener("DOMContentLoaded", function() {
+        if (window.innerWidth <= 1024) {
+            document.documentElement.style.setProperty("overflow-y", "auto", "important");
+            document.body.style.setProperty("overflow-y", "auto", "important");
+            const mc = document.getElementById("mainContent");
+            if(mc) {
+                mc.style.setProperty("overflow", "auto", "important");
+                mc.style.setProperty("height", "auto", "important");
+                const grid = mc.querySelector(".grid");
+                if(grid) grid.style.setProperty("height", "auto", "important");
+            }
+        }
+    });
 
 
     </script>
