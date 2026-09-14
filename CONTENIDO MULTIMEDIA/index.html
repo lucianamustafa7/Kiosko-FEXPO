@@ -61,12 +61,13 @@
     }
 
     }
-       /* Liberación absoluta y forzada de scroll para cualquier dispositivo y pantalla */
-    html, body, #mainContainer, #mainContent {
+        /* Forzar el estiramiento y scroll libre en cualquier pantalla */
+    html, body, #mainContainer, #mainContent, #mainContent > div.grid {
         overflow-y: auto !important;
         overflow-x: hidden !important;
         height: auto !important;
         min-height: 100vh !important;
+        max-height: none !important;
     }  
 
     body:not(:has(#btnBack[style*="display: flex"])) #mainContent > div.grid {
